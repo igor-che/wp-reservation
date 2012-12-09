@@ -17,6 +17,10 @@ Author URI:
 /**
     Статус заказа может быть = (заказан, оплачен, проживают, устарел)
 */
+
+$admin_page = '/админка/';
+$filter_page = '/фильтр/';
+
 function subject($type, $FIO, $phone, $date, $date_start, $date_finish, $order_id, $price, $oneday) {
     if($type = 'inos') {
         $subject = get_option('maintext').get_option('inostext');
@@ -435,7 +439,6 @@ function bron_order_page(){
             <input type='submit' class='setPay' name='setPay' value='Пометить оплаченным'/>
         </form>
     </div>";
-
 }
 
 //============================================================================
@@ -571,6 +574,8 @@ function bron_create_form($attr){
 
         $sql = "SELECT * FROM $tbl_busy, $tbl_groups WHERE $tbl_busy.numbersID = $tbl_groups.id_number";
         $busy = $wpdb->get_results($sql);
+        
+        
 
         echo "<div class='userOrder'><h3>".$numberType."</h3><span style='right:0px'><button class='prevMonth'>&nbsp;<&nbsp;</button>";
         $months = array('Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь');
@@ -671,7 +676,9 @@ function bron_create_form($attr){
 
 function bron_show_admin_panel() {
     global $wpdb;
+    global $admin_page;
     
+    $tbl_accs = $wpdb->prefix.'accs';
     $tbl_hotels = $wpdb->prefix.'hotels';
     $tbl_diap = $wpdb->prefix.'diapasones';
     $tbl_n2d = $wpdb->prefix.'numbers2diapasones';
@@ -684,22 +691,73 @@ function bron_show_admin_panel() {
     // Узнаем пользователя
     global $current_user;
     get_currentuserinfo();
-    if ($current_user->id === 0) return;
+
+    if(isset($_GET['authorization'])) {
+        $login = $_GET['login'];
+        $pass = $_GET['pass'];
+        
+        $creds = array();
+        $creds['user_login'] = $login;
+        $creds['user_password'] = $pass;
+        $creds['remember'] = true;
+        $user = wp_signon( $creds, false );
+        if ( is_wp_error($user) )
+            echo $user->get_error_message();
+                
+    }
     
+    if(isset($_GET['registration'])) {
+        $login = $_GET['login'];
+        $pass = $_GET['pass'];
+        $pass2 = $_GET['pass2'];
+
+        $user_id = username_exists( $login );
+        if ( !$user_id and ($pass == $pass2) and email_exists($user_email) == false ) {
+            $user_id = wp_create_user( $login, $pass );
+            
+            $creds = array();
+            $creds['user_login'] = $login;
+            $creds['user_password'] = $pass;
+            $creds['remember'] = true;
+            $user = wp_signon( $creds, false );
+            if ( is_wp_error($user) )
+                echo $user->get_error_message();
+        }
+    }
+
+    //Если пользователь не авторизован в системе
+    if ($current_user->id === 0) {
+    
+        include plugins_url( '/localization/RU.php', __FILE__ );
+        include plugins_url( '/view/auth_form.php', __FILE__ );
+        include plugins_url( '/view/regis_form.php', __FILE__ );
+        
+        return;
+ 
+    }
+
     echo "<h2>Панель управления отелями</h2><br>";
     
-    
     //Добавление отеля
-    if(isset($_GET['adm_add_hotel'])) {
+    if(isset($_GET['createhotel'])) {
         echo "Отель добавлен";
         $wpdb->insert(
             $tbl_hotels, 
-            array('name' => $_GET['adm_add_name'], 
+            array('name' => $_GET['adm_add_name'],
+                  'country' => $_GET['adm_add_country'], 
+                  'city' => $_GET['adm_add_city'],             
                   'accID' => $_GET['adm_add_acc_id'])
            );
     }
-    
-    
+    //==================================================================
+    //Удаление отеля
+    if(isset($_GET['delhotel'])) {
+        echo "Отель удален";
+        $hotel_id = (int)($_GET['hotel-id']);
+        $sql = "DELETE FROM $tbl_hotels WHERE `id` = $hotel_id";
+        $wpdb->query($sql);
+    }
+    //==================================================================
     //Добавление апартаментов
     if(isset($_GET['adm_add_apart'])) {
         echo "Апартаменты добавлены";
@@ -711,67 +769,113 @@ function bron_show_admin_panel() {
                   'hotelID' => $_GET['adm_add_hotel_id'])
            );
     }
-    
-    if (isset($_GET['hotel-id'])) {
-        $hotel_id = (int)($_GET['hotel-id']);
+    //==================================================================
+    //Показ шахматки
+    if(isset($_GET['showbron'])) {
+        bron_order_page();
 
-        echo "Здесь идет описание отеля. Необходима возможность добавления описания, фото, возможно видео.<br>";
-        echo "<hr><br>";
-        echo "Апартаменты<br>";
+    }
+    //Показа списка апартаментов отеля
+    else if(isset($_GET['showaparts'])) {
+        $hotel_id = (int)($_GET['hotel-id']);
+        $context = array();
         
         $sql = "SELECT * FROM $tbl_numb WHERE `hotelID` = $hotel_id";
-        $aparts = $wpdb->get_results($sql);
-        echo "<table>";
-        echo "<tr><td>ID</td><td>Название</td><td>Количество комнат</td><td>Количество мест</td><td></td><td></td></tr>";
-        foreach($aparts as $apart) {
-            echo "<tr>
-                <td>$apart->id</td>
-                <td>$apart->name</td>
-                <td>$apart->rooms</td>
-                <td>$apart->places</td>
-                <td><a href='".$_SERVER['PHP_SELF']."'>Править</a></td>
-                <td><a href='".$_SERVER['PHP_SELF']."'>Удалить</a></td>
-                </tr>";
-        }
-        echo "</table>";
+        $context['aparts'] = $wpdb->get_results($sql);
+        $context['admin_page'] = $admin_page;
+        $context['hotel_id'] = $hotel_id;
         
-        echo "<form action='".$_SERVER['PHP_SELF'].$_SERVER['REQUEST_URI']."' method='get'>
-                <span>Название</span>
-                <input type='text' class='adm_add_name' name='adm_add_name' value=''/><br>
-                <span>Количество комнат</span>
-                <select type='text' class='adm_add_rooms' name='adm_add_rooms' value=''>
-                    <option value='1'>1</option>
-                    <option value='2'>2</option>
-                    <option value='3'>3</option>
-                    <option value='4'>4</option>
-                </select><br>
-                <span>Количество мест</span>
-                <select type='text' class='adm_add_places' name='adm_add_places' value=''>
-                    <option value='1'>1</option>
-                    <option value='2'>2</option>
-                    <option value='3'>3</option>
-                    <option value='4'>4</option>
-                </select><br>
-                <input type='hidden' name='adm_add_hotel_id' value='$hotel_id'>
-                <input type='submit' class='adm_add_apart' name='adm_add_apart' value='Добавить'/>
-            </form>";
-    } else {
-        $sql = "SELECT * FROM $tbl_hotels";
-        $hotels = $wpdb->get_results($sql);
-        echo "<table>";
-        foreach($hotels as $hotel) {
-            echo "<tr><td>$hotel->name</td><td><a href='".$_SERVER['PHP_SELF'].$_SERVER['REQUEST_URI']."?hotel-id=$hotel->id'>Просмотр</a></td></tr>";
-        }
-        echo "</table>";
+        include plugins_url( '/localization/RU.php', __FILE__ );
+        include plugins_url( '/view/aparts_list.php', __FILE__ );
+        include plugins_url( '/view/create_new_apart_form.php', __FILE__ );
         
-        echo "Создание отеля";
-        echo "<form action='".$_SERVER['PHP_SELF'].$_SERVER['REQUEST_URI']."' method='get'>
-                <span>Название</span>
-                <input type='text' class='adm_add_name' name='adm_add_name' value=''/><br>
-                <input type='hidden' name='adm_add_acc_id' value='$current_user->id'>
-                <input type='submit' class='adm_add_hotel' name='adm_add_hotel' value='Добавить отель'/>
-            </form>";
+
+    } 
+    //==================================================================
+    //Показ информации про определенный отель
+    else if (isset($_GET['showhotel'])) {
+        $hotel_id = (int)($_GET['hotel-id']);
+
+        $sql = "SELECT * FROM $tbl_hotels WHERE `id` = $hotel_id";
+        $hotel = $wpdb->get_results($sql);
+
+        echo ($hotel[0]->name);
+        echo "<br>";
+        echo $hotel[0]->country."(".$hotel[0]->city.")";
+        echo "<br><hr>";
+        echo "<a href='".$_SERVER['PHP_SELF'].$admin_page."?showaparts&hotel-id=$hotel_id'>Просмотр апартаментов</a>";
+        echo "<a href='".$_SERVER['PHP_SELF'].$admin_page."?showbron&hotel-id=$hotel_id'>Таблица бронирований</a>";
     }
+    //==================================================================
+    //Показ всех отелей пользователя
+    else {
+        $context = array();
+        $context['admin_page'] = $admin_page;
+        
+        $sql = "SELECT * FROM $tbl_hotels WHERE `accID` = $current_user->id";
+
+        $context['hotels'] = $wpdb->get_results($sql);
+        $context['acc_id'] = $current_user->id;
+        $context['admin_page'] = $admin_page;
+
+        //Подключаем локаль, в global попадает переменная $locale
+        include plugins_url( '/localization/RU.php', __FILE__ ); //RU связать с переменной wordpress
+        include plugins_url( '/view/adm_show_all_hotels.php', __FILE__ );
+        include plugins_url( '/view/adm_create_new_hotel_form.php', __FILE__ ); //TODO
+    }
+}
+
+function bron_show_filter() {
+    global $wpdb;
+    global $filter_page;
+    
+    $tbl_accs = $wpdb->prefix.'accs';
+    $tbl_hotels = $wpdb->prefix.'hotels';
+    $tbl_diap = $wpdb->prefix.'diapasones';
+    $tbl_n2d = $wpdb->prefix.'numbers2diapasones';
+    $tbl_numb = $wpdb->prefix.'numbers';
+    $tbl_cl = $wpdb->prefix.'clients';
+    $tbl_busy = $wpdb->prefix.'busy';
+    $tbl_or = $wpdb->prefix.'orders';
+    $tbl_groups = $wpdb->prefix.'number_groups';
+    
+    // Узнаем пользователя
+    // global $current_user;
+    // get_currentuserinfo();
+    // if ($current_user->id === 0) return;
+    
+    echo "Поиск отеля.";
+    
+    echo "<form>
+            <span>Страна</span>
+            <input type='text' class='country' name='' value='' />
+            <br>
+            <span>Город</span>
+            <input type='text' class='city' name='' value='' />
+            <br>
+            <span>Класс отеля</span>
+            <select class='' name='hotel_class' value='1'>
+                <option value='1'>*</option>
+                <option value='2'>**</option>
+                <option value='3'>***</option>
+                <option value='4'>****</option>
+                <option value='5'>*****</option>
+            </select>
+            <br>
+            <span>Класс апартаментов</span>
+            <select class='' name='apart_class' value='1'>
+                <option value='1'>*</option>
+                <option value='2'>**</option>
+                <option value='3'>***</option>
+                <option value='4'>****</option>
+                <option value='5'>*****</option>
+            </select>
+            <br>
+            <label for='fromDate'>Дата заезда</label><input type='text' class='datepicker' name='fromDate' id='fromDate' />
+            <br>
+            <label for='toDate'>Дата выезда</label><input type='text' class='datepicker' name='toDate' id='toDate'/><br>
+            <input type='submit' class='' name=filter' value='Поиск'/>
+          </form>";
 
 }
 
@@ -779,6 +883,8 @@ function bron_user_init(){
     add_filter('wp_mail_content_type', create_function('', 'return "text/html";'));
     add_shortcode('createBron', 'bron_create_form');
     add_shortcode('show_admin_panel', 'bron_show_admin_panel');
+    add_shortcode('bron_show_filter', 'bron_show_filter');
+    wp_enqueue_script( 'jquery' );
     wp_enqueue_script( 'script',  plugins_url( '/script.js', __FILE__ ));
     wp_enqueue_style( 'style',  plugins_url( '/style.css', __FILE__ ));
     cron_event_proc();
@@ -828,6 +934,7 @@ function cron_event_proc(){
 }
 
 function bind_files(){
+    wp_enqueue_script( 'jquery' );
     wp_enqueue_script( 'script',  plugins_url( '/script.js', __FILE__ ));
     wp_enqueue_style( 'style',  plugins_url( '/style.css', __FILE__ ));
 }

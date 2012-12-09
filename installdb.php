@@ -12,6 +12,9 @@
     $table_numbers2diapasones = $wpdb->prefix.'numbers2diapasones';
     $table_number_groups = $wpdb->prefix.'number_groups';
     
+    // TODO
+    // Внесение базы городов
+    
     
     $sql = "CREATE TABLE IF NOT EXISTS $table_accs (
               `id` int(11) NOT NULL AUTO_INCREMENT,
@@ -29,6 +32,8 @@
     $sql = "CREATE TABLE IF NOT EXISTS $table_hotels (
               `id` int(11) NOT NULL AUTO_INCREMENT,
               `name` varchar(30) NOT NULL,
+              `country` varchar(30) NOT NULL,
+              `city` varchar(30) NOT NULL,
               `accID` int(11) NOT NULL,
               PRIMARY KEY (`id`)
             ) ENGINE=MyISAM DEFAULT CHARSET=utf8  AUTO_INCREMENT=100";
@@ -36,10 +41,10 @@
     $wpdb->query($sql);
     
     $sql = "INSERT INTO $table_hotels VALUES
-            (1, 'Алушта1', 1), (2, 'Алушта2', 1),
-            (1, 'Алушта3', 1), (2, 'Алушта4', 1),
-            (1, 'Ялта1', 2), (2, 'Ялта2', 2),
-            (1, 'Ялта3', 2), (2, 'Ялта4', 2);";
+            (1, 'Алушта1', 'Украина', 'Алушта', 1), (2, 'Алушта2', 'Россия', 'Москва',  1),
+            (3, 'Алушта3', 'Россия', 'Москва',  1), (4, 'Алушта4', 'Турция', 'Анкара',  1),
+            (5, 'Ялта1', 'Турция', 'Анкара',  2), (6, 'Ялта2', 'Украина', 'Алушта',  2),
+            (7, 'Ялта3', 'Россия', 'Москва',  2), (8, 'Ялта4', 'Турция', 'Анкара',  2);";
 
     $wpdb->query($sql);
     //===================================================
