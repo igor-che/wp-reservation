@@ -1,5 +1,4 @@
 <?php
-    global $context;
     $aparts = $context['aparts'];
     
     echo "Апартаменты<br>

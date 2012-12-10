@@ -4,6 +4,7 @@
 
     $table_accs = $wpdb->prefix.'accs';
     $table_hotels = $wpdb->prefix.'hotels';
+    $table_hotel_fotos = $wpdb->prefix.'hotel_foto';
     $table_numbers = $wpdb->prefix.'numbers';
     $table_busy = $wpdb->prefix.'busy';
     $table_orders = $wpdb->prefix.'orders';
@@ -34,12 +35,22 @@
               `name` varchar(30) NOT NULL,
               `country` varchar(30) NOT NULL,
               `city` varchar(30) NOT NULL,
+              `desc` varchar(1000) NOT NULL,
               `accID` int(11) NOT NULL,
               PRIMARY KEY (`id`)
             ) ENGINE=MyISAM DEFAULT CHARSET=utf8  AUTO_INCREMENT=100";
 
     $wpdb->query($sql);
-    
+    //===================================================
+    $sql = "CREATE TABLE IF NOT EXISTS $table_hotel_fotos (
+              `id` int(11) NOT NULL AUTO_INCREMENT,
+              `hotelID` int(11) NOT NULL,
+              `path` varchar(300) NOT NULL,
+              PRIMARY KEY (`id`)
+            ) ENGINE=MyISAM DEFAULT CHARSET=utf8  AUTO_INCREMENT=1";
+
+    $wpdb->query($sql);
+    //===================================================
     $sql = "INSERT INTO $table_hotels VALUES
             (1, 'Алушта1', 'Украина', 'Алушта', 1), (2, 'Алушта2', 'Россия', 'Москва',  1),
             (3, 'Алушта3', 'Россия', 'Москва',  1), (4, 'Алушта4', 'Турция', 'Анкара',  1),

@@ -1,5 +1,5 @@
 <?php
-    global $context;
+
     $admin_page = $context['admin_page'];
     $hotel_id = $context['hotel_id'];
 

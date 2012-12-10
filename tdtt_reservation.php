@@ -20,6 +20,7 @@ Author URI:
 
 $admin_page = '/админка/';
 $filter_page = '/фильтр/';
+$foto_dir = '/fotos/';
 
 function subject($type, $FIO, $phone, $date, $date_start, $date_finish, $order_id, $price, $oneday) {
     if($type = 'inos') {
@@ -678,8 +679,12 @@ function bron_show_admin_panel() {
     global $wpdb;
     global $admin_page;
     
+    //Подключаем локализацию
+    include (dirname(__FILE__).'/localization/RU.php');
+
     $tbl_accs = $wpdb->prefix.'accs';
     $tbl_hotels = $wpdb->prefix.'hotels';
+    $tbl_hotel_foto = $wpdb->prefix.'hotel_foto';
     $tbl_diap = $wpdb->prefix.'diapasones';
     $tbl_n2d = $wpdb->prefix.'numbers2diapasones';
     $tbl_numb = $wpdb->prefix.'numbers';
@@ -691,28 +696,47 @@ function bron_show_admin_panel() {
     // Узнаем пользователя
     global $current_user;
     get_currentuserinfo();
-
-    if(isset($_GET['authorization'])) {
-        $login = $_GET['login'];
-        $pass = $_GET['pass'];
+    global $foto_dir;
+    
+    if(isset($_POST['uploadfoto'])) {
+        $random_prefix = rand(); //Для предотвращения повторок
+        echo dirname(__FILE__).$foto_dir.$_FILES['file']['name'];
+        var_dump(move_uploaded_file($_FILES['file']['tmp_name'], 
+                               dirname(__FILE__).$foto_dir.$_FILES['file']['name']));
+        if (move_uploaded_file($_FILES['file']['tmp_name'], 
+                               dirname(__FILE__).$foto_dir.$_FILES['file']['name'])) {
+            $wpdb->insert(
+                $tbl_hotel_foto, 
+                array('hotelID' => $_POST['hotel-id'],
+                      'path' => $_FILES['file']['name'], 
+                      )
+               );
+        }
+    }
+    
+    if(isset($_POST['authorization'])) {
+        $login = $_POST['login'];
+        $pass = $_POST['pass'];
         
         $creds = array();
         $creds['user_login'] = $login;
         $creds['user_password'] = $pass;
         $creds['remember'] = true;
         $user = wp_signon( $creds, false );
-        if ( is_wp_error($user) )
+
+        if (is_wp_error($user)) {
             echo $user->get_error_message();
-                
+        }
+
     }
     
-    if(isset($_GET['registration'])) {
-        $login = $_GET['login'];
-        $pass = $_GET['pass'];
-        $pass2 = $_GET['pass2'];
+    if(isset($_POST['registration'])) {
+        $login = $_POST['login'];
+        $pass = $_POST['pass'];
+        $pass2 = $_POST['pass2'];
 
         $user_id = username_exists( $login );
-        if ( !$user_id and ($pass == $pass2) and email_exists($user_email) == false ) {
+        if ( !$user_id and ($pass == $pass2)) {
             $user_id = wp_create_user( $login, $pass );
             
             $creds = array();
@@ -720,24 +744,25 @@ function bron_show_admin_panel() {
             $creds['user_password'] = $pass;
             $creds['remember'] = true;
             $user = wp_signon( $creds, false );
+            
             if ( is_wp_error($user) )
                 echo $user->get_error_message();
+        } else {
+            //Такой пользователь существует или пароли не одинаковые
         }
     }
 
     //Если пользователь не авторизован в системе
-    if ($current_user->id === 0) {
-    
-        include plugins_url( '/localization/RU.php', __FILE__ );
-        include plugins_url( '/view/auth_form.php', __FILE__ );
-        include plugins_url( '/view/regis_form.php', __FILE__ );
-        
+    if ($current_user->id == 0) {
+        $context = array();
+        $context['admin_page'] = $admin_page; 
+        //include (dirname(__FILE__).'/view/auth_form.php');
+        include (dirname(__FILE__).'/view/regis_form.php');
         return;
- 
     }
 
     echo "<h2>Панель управления отелями</h2><br>";
-    
+    //==================================================================
     //Добавление отеля
     if(isset($_GET['createhotel'])) {
         echo "Отель добавлен";
@@ -773,9 +798,9 @@ function bron_show_admin_panel() {
     //Показ шахматки
     if(isset($_GET['showbron'])) {
         bron_order_page();
-
     }
-    //Показа списка апартаментов отеля
+    //==================================================================
+    //Показ списка апартаментов отеля
     else if(isset($_GET['showaparts'])) {
         $hotel_id = (int)($_GET['hotel-id']);
         $context = array();
@@ -784,12 +809,9 @@ function bron_show_admin_panel() {
         $context['aparts'] = $wpdb->get_results($sql);
         $context['admin_page'] = $admin_page;
         $context['hotel_id'] = $hotel_id;
-        
-        include plugins_url( '/localization/RU.php', __FILE__ );
-        include plugins_url( '/view/aparts_list.php', __FILE__ );
-        include plugins_url( '/view/create_new_apart_form.php', __FILE__ );
-        
 
+        include (dirname(__FILE__).'/view/aparts_list.php');
+        include (dirname(__FILE__).'/view/new_apart_form.php');
     } 
     //==================================================================
     //Показ информации про определенный отель
@@ -799,29 +821,30 @@ function bron_show_admin_panel() {
         $sql = "SELECT * FROM $tbl_hotels WHERE `id` = $hotel_id";
         $hotel = $wpdb->get_results($sql);
 
-        echo ($hotel[0]->name);
-        echo "<br>";
-        echo $hotel[0]->country."(".$hotel[0]->city.")";
-        echo "<br><hr>";
-        echo "<a href='".$_SERVER['PHP_SELF'].$admin_page."?showaparts&hotel-id=$hotel_id'>Просмотр апартаментов</a>";
-        echo "<a href='".$_SERVER['PHP_SELF'].$admin_page."?showbron&hotel-id=$hotel_id'>Таблица бронирований</a>";
+        $sql = "SELECT * FROM $tbl_hotel_foto WHERE `hotelID` = $hotel_id";
+        $fotos = $wpdb->get_results($sql);
+        
+        $context = array();
+        $context['hotel'] = $hotel[0];
+        $context['fotos'] = $fotos;
+        $context['admin_page'] = $admin_page;
+        
+        include (dirname(__FILE__).'/view/hotel_settings.php');
+
     }
     //==================================================================
     //Показ всех отелей пользователя
     else {
         $context = array();
-        $context['admin_page'] = $admin_page;
+        $context['acc_id'] = $current_user->id;
+        $context['admin_page'] = $admin_page; 
         
         $sql = "SELECT * FROM $tbl_hotels WHERE `accID` = $current_user->id";
+        $hotels = $wpdb->get_results($sql);
+        $context['hotels'] = $hotels;
 
-        $context['hotels'] = $wpdb->get_results($sql);
-        $context['acc_id'] = $current_user->id;
-        $context['admin_page'] = $admin_page;
-
-        //Подключаем локаль, в global попадает переменная $locale
-        include plugins_url( '/localization/RU.php', __FILE__ ); //RU связать с переменной wordpress
-        include plugins_url( '/view/adm_show_all_hotels.php', __FILE__ );
-        include plugins_url( '/view/adm_create_new_hotel_form.php', __FILE__ ); //TODO
+        include (dirname(__FILE__).'/view/hotels_list.php');
+        include (dirname(__FILE__).'/view/new_hotel_form.php');
     }
 }
 
@@ -844,9 +867,18 @@ function bron_show_filter() {
     // get_currentuserinfo();
     // if ($current_user->id === 0) return;
     
-    echo "Поиск отеля.";
+    if (isset($_GET['filter'])) {
+        //Выдаем результат поиска
+        $sql = '';
+        $aparts = $wpdb->get_results($sql);
+        
+        $context = array();
+        
     
-    echo "<form>
+    }
+    
+    echo "Поиск отеля. <br>
+         <form>
             <span>Страна</span>
             <input type='text' class='country' name='' value='' />
             <br>
@@ -879,17 +911,15 @@ function bron_show_filter() {
 
 }
 
-function bron_user_init(){
+function bron_user_init() {
     add_filter('wp_mail_content_type', create_function('', 'return "text/html";'));
     add_shortcode('createBron', 'bron_create_form');
     add_shortcode('show_admin_panel', 'bron_show_admin_panel');
     add_shortcode('bron_show_filter', 'bron_show_filter');
     wp_enqueue_script( 'jquery' );
-    wp_enqueue_script( 'script',  plugins_url( '/script.js', __FILE__ ));
-    wp_enqueue_style( 'style',  plugins_url( '/style.css', __FILE__ ));
-    cron_event_proc();
+    wp_enqueue_script( 'script',  plugins_url( '/js/script.js', __FILE__ ));
+    wp_enqueue_style( 'style',  plugins_url( '/styles /style.css', __FILE__ ));
 }
-
 //============================================================================
 function bron_install(){
 
@@ -898,15 +928,11 @@ function bron_install(){
 
     add_option('ukrtext', '');
 
-    wp_schedule_event(time(), 'hourly', 'cron_event');
-
     include "installdb.php";
 }
 
 function bron_uninstall(){
     global $wpdb;
-    
-    wp_clear_scheduled_hook('cron_event'); 
     
     delete_option('maintext');
     delete_option('inostext');
@@ -916,34 +942,16 @@ function bron_uninstall(){
         include "installdb.php";
 }
 
-function cron_event_proc(){
-    global $wpdb;
-    $tbl_or = $wpdb->prefix.'orders';
-    $tbl_cl = $wpdb->prefix.'clients';
-    $orders = $wpdb->get_results("SELECT * FROM $tbl_or, $tbl_cl WHERE `$tbl_or`.`clientID` = `$tbl_cl`.`id`");
-    foreach($orders as $order){
-        if(($order->state == 'create')&&($order->date - Date('Y-m-d') > 3)){
-            $wpdb->update(
-                $tbl_or,
-                array('state' => 'remindsend'),
-                array('id' => $_GET['order_id']));
-            $headers = 'From: Гостиница Москва <info@hotel-alushta.com.ua>' . "\r\n";
-            wp_mail($order->mail, 'Напоминание о заказе', "Ваш заказ в гостинице 'Москва' все еще не оплачен", $headers);
-        }
-    }
-}
-
 function bind_files(){
     wp_enqueue_script( 'jquery' );
-    wp_enqueue_script( 'script',  plugins_url( '/script.js', __FILE__ ));
-    wp_enqueue_style( 'style',  plugins_url( '/style.css', __FILE__ ));
+    wp_enqueue_script( 'script',  plugins_url( '/js/script.js', __FILE__ ));
+    wp_enqueue_style( 'style',  plugins_url( '/styles/style.css', __FILE__ ));
 }
 
-register_activation_hook(__FILE__, 'bron_install');
-register_deactivation_hook(__FILE__, 'bron_uninstall');
+register_activation_hook( __FILE__, 'bron_install');
+register_deactivation_hook( __FILE__, 'bron_uninstall');
 
 add_action('admin_menu', 'bron_admin_init');
 add_action('init', 'bron_user_init');
-add_action('cron_event', 'cron_event_proc');
 add_action('wp_enqueue_scripts', 'bind_files' ); 
 ?>

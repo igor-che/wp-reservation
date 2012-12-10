@@ -1,6 +1,5 @@
 <?php
 
-    global $context;
     $acc_id = $context['acc_id'];
     $admin_page = $context['admin_page'];
 
