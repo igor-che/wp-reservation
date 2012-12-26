@@ -18,6 +18,16 @@ Author URI:
     Статус заказа может быть = (заказан, оплачен, проживают, устарел)
 */
 
+/*
+    TODO
+    Нужны шорткоды
+        Для посетителей
+            Просмотр информации про отель [user_hotel_info]
+            Просмотр информауии про номер [user_apart_info]
+            Оформление заказа номера      [user_ordering]
+*/
+$hotel_page = '/отель/';
+$apart_page = '/номер/';
 $admin_page = '/админка/';
 $filter_page = '/фильтр/';
 $foto_dir = '/fotos/';
@@ -90,7 +100,7 @@ function bron_diap_page(){
     
     global $wpdb;
     
-    if(isset($_GET['btnAddNewDiap'])){
+    if(isset($_GET['btnAddNewDiap'])) {
         echo "<h4>Диапазон добавлен</h4>";
         $start = $_GET['start'];
         $finish = $_GET['finish'];
@@ -101,13 +111,13 @@ function bron_diap_page(){
                );
     }
     
-    if(isset($_GET['btnDelDiap'])){
+    if(isset($_GET['btnDelDiap'])) {
         echo "<h4>Аппартаменты удалены</h4>";
         $id = $_GET['diap_id'];
         $wpdb->query("DELETE FROM ".$wpdb->prefix.'table_diapasones'." WHERE id = $id");
     }
 
-    if(isset($_GET['btnSaveDiap'])){
+    if(isset($_GET['btnSaveDiap'])) {
         echo "<h4>Изменения сохранены</h4>";
         $id = $_GET['diap_id'];
         $start = $_GET['start'];
@@ -131,7 +141,7 @@ function bron_diap_page(){
         </form>
     ";
     
-    if(isset($_GET['btnSavePrices'])){
+    if(isset($_GET['btnSavePrices'])) {
         echo "<h3>Цены сохранены</h3>";
         $prices = $wpdb->get_results('SELECT id FROM '.$wpdb->prefix.'numbers2diapasones');
         foreach($prices as $price){
@@ -175,7 +185,7 @@ function bron_diap_page(){
         echo "<tr><td>".$apart->name."</td>";
         foreach($diaps as $diap){
             for($c=0;$c<count($price);$c++){
-                if(($price[$c]->numbersID == $apart->id)&&($price[$c]->diapasonesID == $diap->id)){
+                if($price[$c]->numbersID == $apart->id && $price[$c]->diapasonesID == $diap->id){
                     echo "<td>
                         <input id='' class='' name='price_".$price[$c]->id."' value='".$price[$c]->price."' style='width:30px'/>
                         <input id='' class='' name='add_price_".$price[$c]->id."' value='".$price[$c]->additional_place_price."' style='width:30px'/>
@@ -678,6 +688,9 @@ function bron_create_form($attr){
 function bron_show_admin_panel() {
     global $wpdb;
     global $admin_page;
+    global $foto_dir; 
+    global $current_user;
+    get_currentuserinfo();
     
     //Подключаем локализацию
     include (dirname(__FILE__).'/localization/RU.php');
@@ -693,27 +706,9 @@ function bron_show_admin_panel() {
     $tbl_or = $wpdb->prefix.'orders';
     $tbl_groups = $wpdb->prefix.'number_groups';
     
-    // Узнаем пользователя
-    global $current_user;
-    get_currentuserinfo();
-    global $foto_dir;
-    
-    if(isset($_POST['uploadfoto'])) {
-        $random_prefix = rand(); //Для предотвращения повторок
-        echo dirname(__FILE__).$foto_dir.$_FILES['file']['name'];
-        var_dump(move_uploaded_file($_FILES['file']['tmp_name'], 
-                               dirname(__FILE__).$foto_dir.$_FILES['file']['name']));
-        if (move_uploaded_file($_FILES['file']['tmp_name'], 
-                               dirname(__FILE__).$foto_dir.$_FILES['file']['name'])) {
-            $wpdb->insert(
-                $tbl_hotel_foto, 
-                array('hotelID' => $_POST['hotel-id'],
-                      'path' => $_FILES['file']['name'], 
-                      )
-               );
-        }
-    }
-    
+    //ОБРАБОТКА ЛОГИНА
+    //==================================================================
+    //Авторизация
     if(isset($_POST['authorization'])) {
         $login = $_POST['login'];
         $pass = $_POST['pass'];
@@ -729,7 +724,8 @@ function bron_show_admin_panel() {
         }
 
     }
-    
+    //==================================================================
+    //Регистрация
     if(isset($_POST['registration'])) {
         $login = $_POST['login'];
         $pass = $_POST['pass'];
@@ -751,9 +747,9 @@ function bron_show_admin_panel() {
             //Такой пользователь существует или пароли не одинаковые
         }
     }
-
+    //==================================================================
     //Если пользователь не авторизован в системе
-    if ($current_user->id == 0) {
+    if (!is_user_logged_in()) {
         $context = array();
         $context['admin_page'] = $admin_page; 
         //include (dirname(__FILE__).'/view/auth_form.php');
@@ -761,11 +757,77 @@ function bron_show_admin_panel() {
         return;
     }
 
-    echo "<h2>Панель управления отелями</h2><br>";
+    //ОБРАБОТКА ОПЕРАЦИЙ
+    //==================================================================
+    //Добавление нового сезона
+    if(isset($_GET['btnAddDiap'])){
+        echo "<h4>Диапазон добавлен</h4>";
+        $start = $_GET['start'];
+        $finish = $_GET['finish'];
+        $wpdb->insert(
+                $tbl_diap,
+                array('date_start' => $start, 'date_finish' => $finish, 'accID' => $current_user->id)
+                );
+    }
+    //==================================================================
+    //Удаление сезона
+    if(isset($_GET['btnDelDiap'])){
+        echo "<h4>Аппартаменты удалены</h4>";
+        $id = $_GET['diap_id'];
+        $wpdb->query("DELETE FROM $tbl_diap WHERE `id` = $id AND `accID` = $current_user->id");
+    }
+    //==================================================================
+    //Сохранение диапазонов
+    if(isset($_GET['btnSaveDiap'])){
+        echo "<h4>Изменения сохранены</h4>";
+        $id = $_GET['diap_id'];
+        $start = $_GET['start'];
+        $finish = $_GET['finish'];
+        $wpdb->update(
+                    $tbl_diap, 
+                    array('date_start' => $start, 'date_finish' => $finish),
+                    array('id' => $id, 'accID' => $current_user->id)
+                    ); 
+        //TODO В цикле новый диаазон каждому номеру в ценах
+    }
+    //==================================================================
+    //Сохранение описания Отеля
+    if(isset($_GET['save_desc'])) {
+        $hotel_id = $_GET['hotel-id'];
+        $desc = $_GET['desc'];
+        $wpdb->update(
+                    $tbl_hotels, 
+                    array('desc' => $desc),
+                    array('id' => $hotel_id)
+                    );
+    }
+    //==================================================================
+    //Удаление фото
+    if(isset($_GET['deletefoto'])) {
+        $foto_id = $_GET['foto-id'];
+        $sql = "DELETE FROM $tbl_hotel_foto WHERE `id` = $foto_id";
+        $res = $wpdb->query($sql);
+    }
+    //==================================================================
+    //Аплоад фото
+    if(isset($_POST['uploadfoto'])) {
+        $filename = $_FILES['file']['name'];
+        $random_prefix = rand(); //Для предотвращения повторок
+        $filename = $random_prefix.$filename;
+        
+        if (move_uploaded_file($_FILES['file']['tmp_name'], 
+                               dirname(__FILE__).$foto_dir.$filename)) {
+            $wpdb->insert(
+                $tbl_hotel_foto, 
+                array('hotelID' => $_POST['hotelID'],
+                      'path' => $filename 
+                      )
+               );
+        }
+    }
     //==================================================================
     //Добавление отеля
     if(isset($_GET['createhotel'])) {
-        echo "Отель добавлен";
         $wpdb->insert(
             $tbl_hotels, 
             array('name' => $_GET['adm_add_name'],
@@ -795,9 +857,48 @@ function bron_show_admin_panel() {
            );
     }
     //==================================================================
+    //Сохранение цен
+    if(isset($_GET['btnSavePrices'])) {
+        $prices = $wpdb->get_results("SELECT id FROM $tbl_n2d");
+        foreach($prices as $price){
+            if(isset($_GET['price_'.$price->id])){
+                $wpdb->update(
+                    $tbl_n2d,
+                    array('price' => $_GET['price_'.$price->id], 'additional_place_price' => $_GET['add_price_'.$price->id]),
+                    array('id' => $price->id)
+                );
+            }
+        }
+    }   
+    echo "<h2>Панель управления отелями</h2><br>";
+    //==================================================================
     //Показ шахматки
     if(isset($_GET['showbron'])) {
         bron_order_page();
+    }
+    //==================================================================
+    //Показ и правка сезонов
+    else if(isset($_GET['showseasons'])) {
+        $hotel_id = $_GET['hotel-id'];
+        $sql = "SELECT * FROM $tbl_diap WHERE `accID` = $hotel_id";
+        $context = array();
+        $context['admin_page'] = $admin_page; 
+        $context['seasons'] = $wpdb->get_results($sql);
+        include (dirname(__FILE__).'/view/seasons_list.php');
+        include (dirname(__FILE__).'/view/new_season_form.php');
+    }
+    //==================================================================
+    //Показ и правка цен
+    else if(isset($_GET['showprices'])) {
+        $hotel_id = $_GET['hotel-id'];
+        $sql = "SELECT * FROM $tbl_diap WHERE `accID` = $hotel_id";
+        $context = array();
+        $context['admin_page'] = $admin_page; 
+        $context['seasons'] = $wpdb->get_results($sql);
+        $context['diaps'] = $wpdb->get_results("SELECT * FROM $tbl_diap");
+        $context['aparts'] = $wpdb->get_results("SELECT * FROM $tbl_numb");
+        $context['price'] = $wpdb->get_results("SELECT * FROM $tbl_n2d");
+        include (dirname(__FILE__).'/view/price_table.php');
     }
     //==================================================================
     //Показ списка апартаментов отеля
@@ -812,10 +913,10 @@ function bron_show_admin_panel() {
 
         include (dirname(__FILE__).'/view/aparts_list.php');
         include (dirname(__FILE__).'/view/new_apart_form.php');
-    } 
+    }
     //==================================================================
     //Показ информации про определенный отель
-    else if (isset($_GET['showhotel'])) {
+    else if(isset($_GET['showhotel'])) {
         $hotel_id = (int)($_GET['hotel-id']);
 
         $sql = "SELECT * FROM $tbl_hotels WHERE `id` = $hotel_id";
@@ -827,18 +928,18 @@ function bron_show_admin_panel() {
         $context = array();
         $context['hotel'] = $hotel[0];
         $context['fotos'] = $fotos;
+        $context['foto_dir'] = plugins_url( '/fotos/', __FILE__ );
         $context['admin_page'] = $admin_page;
         
         include (dirname(__FILE__).'/view/hotel_settings.php');
-
     }
     //==================================================================
     //Показ всех отелей пользователя
     else {
         $context = array();
         $context['acc_id'] = $current_user->id;
-        $context['admin_page'] = $admin_page; 
-        
+        $context['admin_page'] = $admin_page;
+
         $sql = "SELECT * FROM $tbl_hotels WHERE `accID` = $current_user->id";
         $hotels = $wpdb->get_results($sql);
         $context['hotels'] = $hotels;
@@ -911,14 +1012,36 @@ function bron_show_filter() {
 
 }
 
+function bron_show_favorites() {
+    /*
+        Выборка из базы лучших или случайных отелей и показ
+    */
+    
+    global $wpdb;
+    global $filter_page;
+    
+    $tbl_accs = $wpdb->prefix.'accs';
+    $tbl_hotels = $wpdb->prefix.'hotels';
+    $tbl_diap = $wpdb->prefix.'diapasones';
+    $tbl_n2d = $wpdb->prefix.'numbers2diapasones';
+    $tbl_numb = $wpdb->prefix.'numbers';
+    $tbl_cl = $wpdb->prefix.'clients';
+    $tbl_busy = $wpdb->prefix.'busy';
+    $tbl_or = $wpdb->prefix.'orders';
+    $tbl_groups = $wpdb->prefix.'number_groups';
+    
+    echo "тут будет выборка отелей";
+}
+
 function bron_user_init() {
     add_filter('wp_mail_content_type', create_function('', 'return "text/html";'));
     add_shortcode('createBron', 'bron_create_form');
     add_shortcode('show_admin_panel', 'bron_show_admin_panel');
+    add_shortcode('bron_show_favorites', 'bron_show_favorites');
     add_shortcode('bron_show_filter', 'bron_show_filter');
     wp_enqueue_script( 'jquery' );
     wp_enqueue_script( 'script',  plugins_url( '/js/script.js', __FILE__ ));
-    wp_enqueue_style( 'style',  plugins_url( '/styles /style.css', __FILE__ ));
+    wp_enqueue_style( 'style',  plugins_url( '/styles/style.css', __FILE__ ));
 }
 //============================================================================
 function bron_install(){
@@ -939,7 +1062,7 @@ function bron_uninstall(){
     delete_option('ukrtext');   
     
     if (true) //перевести на параметр плагина
-        include "installdb.php";
+        include "deletedb.php";
 }
 
 function bind_files(){

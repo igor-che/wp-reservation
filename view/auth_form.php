@@ -1,5 +1,4 @@
 <?php
-
     $admin_page = $context['admin_page'];
     
     echo "Авторизация <br>

@@ -59,18 +59,6 @@
 
     $wpdb->query($sql);
     //===================================================
-    $sql = "CREATE TABLE IF NOT EXISTS $table_hotels (
-              `id` int(11) NOT NULL AUTO_INCREMENT,
-              `name` varchar(30) NOT NULL,
-              `rooms` tinyint(4) NOT NULL,
-              `places` tinyint(4) NOT NULL,
-              `additional_places` tinyint(4) NOT NULL,
-              `hotelID` tinyint(4) NOT NULL,
-              PRIMARY KEY (`id`)
-            ) ENGINE=MyISAM  DEFAULT CHARSET=utf8";
-    
-    $wpdb->query($sql);
-    //===================================================
     $sql = "CREATE TABLE IF NOT EXISTS $table_numbers (
               `id` int(11) NOT NULL AUTO_INCREMENT,
               `name` varchar(30) NOT NULL,
@@ -155,6 +143,7 @@
               `id_number` int(11) NOT NULL,
               `group_rus_name` varchar(30) NOT NULL,
               `group_en_name` varchar(30) NOT NULL,
+              `accID` int(11) NOT NULL,
               PRIMARY KEY (`idx`)
             ) ENGINE=MyISAM DEFAULT CHARSET=utf8  AUTO_INCREMENT=100";
 
@@ -215,20 +204,21 @@
               `id` int(11) NOT NULL AUTO_INCREMENT,
               `date_start` date NOT NULL,
               `date_finish` date NOT NULL,
+              `accID` int(11) NOT NULL,
               PRIMARY KEY (`id`)
             ) ENGINE=MyISAM DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;";
     $wpdb->query($sql);
     
-    $sql = "INSERT INTO $table_diapasones (`id`, `date_start`, `date_finish`) VALUES
-            (1, '2012-01-01', '2012-01-10'),
-            (2, '2012-01-11', '2012-04-27'),
-            (3, '2012-04-28', '2012-05-11'),
-            (4, '2012-05-12', '2012-05-31'),
-            (5, '2012-06-01', '2012-06-30'),
-            (6, '2012-07-01', '2012-08-31'),
-            (7, '2012-09-01', '2012-09-30'),
-            (8, '2012-10-01', '2012-12-28'),
-            (10, '2012-12-29', '2012-12-31');";
+    $sql = "INSERT INTO $table_diapasones (`id`, `date_start`, `date_finish`, `accID`) VALUES
+            (1, '2012-01-01', '2012-01-10', 1),
+            (2, '2012-01-11', '2012-04-27', 1),
+            (3, '2012-04-28', '2012-05-11', 1),
+            (4, '2012-05-12', '2012-05-31', 1),
+            (5, '2012-06-01', '2012-06-30', 1),
+            (6, '2012-07-01', '2012-08-31', 1),
+            (7, '2012-09-01', '2012-09-30', 1),
+            (8, '2012-10-01', '2012-12-28', 1),
+            (10, '2012-12-29', '2012-12-31', 1);";
     $wpdb->query($sql);
     //====================================================
     $sql = "CREATE TABLE IF NOT EXISTS $table_numbers2diapasones (
